@@ -3,3 +3,5 @@ backend/API/bin/
 backend/API/obj/
 
 backend/API/appsettings.json
+.vs
+.vscode
