@@ -23,4 +23,15 @@ export class TestsErrorsComponent implements OnInit {
       }
     );
   }
+
+  get400Error() {
+    this.http.post(this.baseUrl + 'account/register', {}).subscribe(
+      (resp) => {
+        console.log(resp);
+      },
+      (err) => {
+        console.log('Err', err);
+      }
+    );
+  }
 }
