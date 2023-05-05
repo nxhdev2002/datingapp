@@ -8,6 +8,7 @@ namespace API.Controllers
     using API.DTOs;
     using API.Entities;
     using API.Interfaces;
+    using AutoMapper;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.EntityFrameworkCore;
 
@@ -17,10 +18,12 @@ namespace API.Controllers
     {
         private readonly DataContext _ctx;
         private readonly ITokenService _tokenService;
-        public AccountController(DataContext context, ITokenService tokenService)
+        private readonly IMapper _mapper;
+        public AccountController(DataContext context, ITokenService tokenService, IMapper mapper)
         {
             _tokenService = tokenService;
             _ctx = context;
+            _mapper = mapper;
         }
 
         [HttpPost("login")]
@@ -51,24 +54,32 @@ namespace API.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<AppUser>> Register(RegisterDto registerDTO)
+        public async Task<ActionResult<UserDto>> Register(RegisterDto registerDTO)
         {
             if (await UserExists(registerDTO.Username))
             {
-                return BadRequest("Username is taker");
+                return BadRequest("Username is taken");
             }
 
+            var user = _mapper.Map<AppUser>(registerDTO);
+
             using var hmac = new HMACSHA512();
-            var user = new AppUser
-            {
-                Username = registerDTO.Username.ToLower(),
-                PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDTO.Password)),
-                PasswordSalt = hmac.Key
-            };
+            user.Username = registerDTO.Username.ToLower();
+            user.PasswordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(registerDTO.Password));
+            user.PasswordSalt = hmac.Key;
             _ctx.Users.Add(user);
             await _ctx.SaveChangesAsync();
 
-            return user;
+            var token = _tokenService.CreateToken(user);
+            var photoUrl = user.Photos?.FirstOrDefault(x => x.isMain)?.Url;
+
+            return new UserDto
+            {
+                Username = user.Username,
+                Token = token,
+                PhotoUrl = photoUrl,
+                KnownAs = user.KnownAs
+            };
         }
 
         [ApiExplorerSettings(IgnoreApi = true)]
